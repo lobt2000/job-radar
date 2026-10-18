@@ -1,0 +1,19 @@
+services:
+  job-radar:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_PATH: /data/job-radar.db
+      # Cap scrape on shared hosts; friends can raise later
+      JOB_RADAR_MAX_COMPANIES: ${JOB_RADAR_MAX_COMPANIES:-100}
+      JOB_RADAR_ENRICH_WEBSITES: ${JOB_RADAR_ENRICH_WEBSITES:-0}
+      JOB_RADAR_DISCOVER_CAREERS: ${JOB_RADAR_DISCOVER_CAREERS:-0}
+      JOB_RADAR_RESUME: ${JOB_RADAR_RESUME:-1}
+      JOB_RADAR_DELAY_MS: ${JOB_RADAR_DELAY_MS:-400}
+    volumes:
+      - job-radar-data:/data
+    restart: unless-stopped
+
+volumes:
+  job-radar-data:

@@ -15,6 +15,7 @@ build/
 *.db
 *.db-*
 data/
+!data/.gitkeep
 tmp-*.html
 scripts/probe-xhr.mjs
 

@@ -20,9 +20,20 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-1. Open **Profile** and set roles / keywords / excludes (comma-separated).
-2. Click **Refresh** in the header to crawl DOU (first full run can take a while).
-3. Browse **All**, **New**, and **Applied**.
+1. Open **Profile** (roles, cities, English, experience, remote preference).
+2. Optional: upload a `.txt` CV on the **CV** tab and apply it to the profile.
+3. Click **Refresh** to crawl DOU (resume skips recent companies).
+4. Browse **All** / **New** / **Applied** with search + city + remote filters.
+
+### Share with friends (deploy)
+
+This app needs a **persistent disk** (SQLite) and a **long-running Node** process — not Vercel.
+
+Fastest path: **Docker Compose on a small VPS**. See **[DEPLOY.md](DEPLOY.md)** for Fly.io / Railway / hardening notes.
+
+```bash
+docker compose up -d --build
+```
 
 ### Optional CLI scrape
 
