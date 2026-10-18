@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build
+.next/
+out/
+dist/
+build/
+
+# env / local data
+.env
+.env*.local
+*.db
+*.db-*
+data/
+
+# debug / OS
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# IDE / agent brainstorm
+.idea/
+.vscode/
+.superpowers/
+.cursor/
+
+# typescript
+next-env.d.ts
+*.tsbuildinfo
