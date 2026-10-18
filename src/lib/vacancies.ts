@@ -8,10 +8,15 @@ import {
   type Vacancy,
 } from "@/db/schema";
 import {
+  matchesBoardFilters,
   parseJsonStringArray,
   scoreVacancy,
+  type BoardFilters,
   type ProfileTokens,
 } from "@/lib/score";
+import type { BoardVacancy } from "@/lib/types";
+
+export type { BoardVacancy };
 
 export type UpsertVacancyInput = {
   companySlug: string;
@@ -94,21 +99,12 @@ export function getProfileTokens(): ProfileTokens {
     roles: parseJsonStringArray(row?.roles),
     keywords: parseJsonStringArray(row?.keywords),
     excludeKeywords: parseJsonStringArray(row?.excludeKeywords),
+    cities: parseJsonStringArray(row?.cities),
+    englishLevel: row?.englishLevel ?? null,
+    experienceMin: row?.experienceMin ?? null,
+    preferRemote: Boolean(row?.preferRemote),
   };
 }
-
-export type BoardVacancy = {
-  id: number;
-  title: string;
-  shortDescription: string | null;
-  url: string;
-  companyName: string;
-  companySlug: string;
-  firstSeenAt: Date | null;
-  score: number;
-  applied: boolean;
-  applicationStatus: string | null;
-};
 
 function loadActiveWithCompany() {
   return db
@@ -160,11 +156,29 @@ function toBoard(
   return out;
 }
 
-export function listAllVacancies(): BoardVacancy[] {
-  return toBoard(loadActiveWithCompany(), getProfileTokens());
+function applyFilters(
+  items: BoardVacancy[],
+  filters?: BoardFilters,
+): BoardVacancy[] {
+  if (!filters) return items;
+  return items.filter((v) =>
+    matchesBoardFilters(
+      v.title,
+      v.shortDescription,
+      v.companyName,
+      filters,
+    ),
+  );
 }
 
-export function listNewVacancies(): BoardVacancy[] {
+export function listAllVacancies(filters?: BoardFilters): BoardVacancy[] {
+  return applyFilters(
+    toBoard(loadActiveWithCompany(), getProfileTokens()),
+    filters,
+  );
+}
+
+export function listNewVacancies(filters?: BoardFilters): BoardVacancy[] {
   const row = db.select().from(profile).limit(1).get();
   const watermark = row?.newSeenWatermark;
   const tokens = getProfileTokens();
@@ -173,10 +187,10 @@ export function listNewVacancies(): BoardVacancy[] {
     if (!r.firstSeenAt) return false;
     return r.firstSeenAt.getTime() > watermark.getTime();
   });
-  return toBoard(rows, tokens);
+  return applyFilters(toBoard(rows, tokens), filters);
 }
 
-export function listAppliedVacancies(): BoardVacancy[] {
+export function listAppliedVacancies(filters?: BoardFilters): BoardVacancy[] {
   const tokens = getProfileTokens();
   const rows = db
     .select({
@@ -201,7 +215,7 @@ export function listAppliedVacancies(): BoardVacancy[] {
     .orderBy(desc(applications.appliedAt))
     .all();
 
-  return rows.map((row) => ({
+  const items = rows.map((row) => ({
     id: row.id,
     title: row.title,
     shortDescription: row.shortDescription,
@@ -213,6 +227,7 @@ export function listAppliedVacancies(): BoardVacancy[] {
     applied: true,
     applicationStatus: row.applicationStatus,
   }));
+  return applyFilters(items, filters);
 }
 
 export function countNewVacancies(): number {
@@ -265,26 +280,26 @@ export function updateProfile(input: {
   roles: string[];
   keywords: string[];
   excludeKeywords: string[];
+  cities: string[];
+  englishLevel: string | null;
+  experienceMin: number | null;
+  preferRemote: boolean;
 }): void {
+  const payload = {
+    roles: JSON.stringify(input.roles),
+    keywords: JSON.stringify(input.keywords),
+    excludeKeywords: JSON.stringify(input.excludeKeywords),
+    cities: JSON.stringify(input.cities),
+    englishLevel: input.englishLevel,
+    experienceMin: input.experienceMin,
+    preferRemote: input.preferRemote,
+  };
   const row = db.select().from(profile).limit(1).get();
   if (!row) {
-    db.insert(profile)
-      .values({
-        roles: JSON.stringify(input.roles),
-        keywords: JSON.stringify(input.keywords),
-        excludeKeywords: JSON.stringify(input.excludeKeywords),
-      })
-      .run();
+    db.insert(profile).values(payload).run();
     return;
   }
-  db.update(profile)
-    .set({
-      roles: JSON.stringify(input.roles),
-      keywords: JSON.stringify(input.keywords),
-      excludeKeywords: JSON.stringify(input.excludeKeywords),
-    })
-    .where(eq(profile.id, row.id))
-    .run();
+  db.update(profile).set(payload).where(eq(profile.id, row.id)).run();
 }
 
 export function getProfileRow() {

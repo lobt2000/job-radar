@@ -25,6 +25,9 @@ export const companies = sqliteTable(
     scrapeNotes: text("scrape_notes"),
     douVacancyCount: integer("dou_vacancy_count"),
     lastScrapedAt: integer("last_scraped_at", { mode: "timestamp_ms" }),
+    /** ok | not_found | error — skip not_found on resume unless forced */
+    vacancyFetchStatus: text("vacancy_fetch_status").default("ok"),
+    lastVacancyError: text("last_vacancy_error"),
   },
   (t) => [uniqueIndex("companies_slug_idx").on(t.slug)],
 );
@@ -61,7 +64,35 @@ export const profile = sqliteTable("profile", {
   roles: text("roles").notNull().default("[]"),
   keywords: text("keywords").notNull().default("[]"),
   excludeKeywords: text("exclude_keywords").notNull().default("[]"),
+  cities: text("cities").notNull().default("[]"),
+  englishLevel: text("english_level"),
+  experienceMin: integer("experience_min"),
+  preferRemote: integer("prefer_remote", { mode: "boolean" })
+    .notNull()
+    .default(false),
   newSeenWatermark: integer("new_seen_watermark", { mode: "timestamp_ms" }),
+});
+
+/** v2: uploaded CV / resume for matching */
+export const cvDocuments = sqliteTable("cv_documents", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  fileName: text("file_name").notNull(),
+  mimeType: text("mime_type"),
+  storagePath: text("storage_path").notNull(),
+  rawText: text("raw_text"),
+  parsedJson: text("parsed_json"),
+  status: text("status", {
+    enum: ["uploaded", "parsing", "ready", "error"],
+  })
+    .notNull()
+    .default("uploaded"),
+  errorMessage: text("error_message"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
 });
 
 export const applications = sqliteTable(

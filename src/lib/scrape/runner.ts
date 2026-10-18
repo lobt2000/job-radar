@@ -19,6 +19,9 @@ export type ScrapeStats = {
   careersDiscovered: number;
   vacanciesUpserted: number;
   companiesFailed: number;
+  companiesSkipped: number;
+  progressCurrent: number;
+  progressTotal: number;
   errors: string[];
 };
 
@@ -53,6 +56,9 @@ function emptyStats(): ScrapeStats {
     careersDiscovered: 0,
     vacanciesUpserted: 0,
     companiesFailed: 0,
+    companiesSkipped: 0,
+    progressCurrent: 0,
+    progressTotal: 0,
     errors: [],
   };
 }
@@ -64,9 +70,28 @@ function pushError(stats: ScrapeStats, msg: string) {
 
 function publish(partial: Partial<ScrapeStatus> & { stats: ScrapeStats }) {
   current = { ...current, ...partial };
-  if (partial.message) {
-    console.log(`[scrape] ${partial.message}`);
+  if (partial.message) console.log(`[scrape] ${partial.message}`);
+}
+
+function shouldSkipCompany(
+  company: {
+    vacancyFetchStatus: string | null;
+    lastScrapedAt: Date | null;
+    douVacancyCount: number | null;
+  },
+  options: ScrapeOptions,
+): string | null {
+  if (options.force) return null;
+  if (!options.resume) return null;
+  if (company.vacancyFetchStatus === "not_found") {
+    return "known 404";
   }
+  if (company.lastScrapedAt) {
+    const ageMs = Date.now() - company.lastScrapedAt.getTime();
+    const skipMs = options.resumeSkipHours * 60 * 60 * 1000;
+    if (ageMs < skipMs) return `scraped <${options.resumeSkipHours}h ago`;
+  }
+  return null;
 }
 
 async function syncVacanciesForCompany(
@@ -113,9 +138,16 @@ async function syncVacanciesForCompany(
   updateCompanyWiki(company.id, {
     lastScrapedAt: new Date(),
     douVacancyCount: parsed.length,
+    vacancyFetchStatus: "ok",
+    lastVacancyError: null,
   });
 
   return parsed.length;
+}
+
+function isNotFoundError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /HTTP 404/i.test(msg);
 }
 
 export async function runRefresh(
@@ -151,10 +183,7 @@ export async function runRefresh(
       delayMs: options.delayMs,
       maxCompanies: options.maxCompanies,
       onBatch: (_batch, total) => {
-        publish({
-          stats,
-          message: `Catalog: ${total} companies…`,
-        });
+        publish({ stats, message: `Catalog: ${total} companies…` });
       },
     });
 
@@ -163,28 +192,39 @@ export async function runRefresh(
       stats.companiesUpserted += 1;
     }
 
+    const limited = listCompaniesBySlugs(catalog.map((c) => c.slug));
+    stats.progressTotal = limited.length;
+
     publish({
       stats,
-      message: `Upserted ${stats.companiesUpserted} companies. Processing…`,
+      message: `Upserted ${stats.companiesUpserted}. Processing ${limited.length}…`,
     });
-
-    const limited = listCompaniesBySlugs(catalog.map((c) => c.slug));
-    const total = limited.length;
 
     for (let i = 0; i < limited.length; i++) {
       const company = limited[i];
+      stats.progressCurrent = i + 1;
+      const pct = Math.round(((i + 1) / limited.length) * 100);
       publish({
         stats,
-        message: `[${i + 1}/${total}] ${company.name}`,
+        message: `[${i + 1}/${limited.length} · ${pct}%] ${company.name}`,
       });
 
       try {
+        const skipReason = shouldSkipCompany(company, options);
+        if (skipReason) {
+          stats.companiesSkipped += 1;
+          continue;
+        }
+
         const enrich = await enrichCompanyWikiFields(company, options);
         if (enrich.websiteEnriched) stats.websitesEnriched += 1;
         if (enrich.careersDiscovered) stats.careersDiscovered += 1;
 
         if (company.douVacancyCount === 0) {
-          updateCompanyWiki(company.id, { lastScrapedAt: new Date() });
+          updateCompanyWiki(company.id, {
+            lastScrapedAt: new Date(),
+            vacancyFetchStatus: "ok",
+          });
           continue;
         }
 
@@ -192,10 +232,20 @@ export async function runRefresh(
         stats.vacanciesUpserted += n;
       } catch (err) {
         stats.companiesFailed += 1;
-        pushError(
-          stats,
-          `${company.slug}: ${err instanceof Error ? err.message : String(err)}`,
-        );
+        const msg = err instanceof Error ? err.message : String(err);
+        pushError(stats, `${company.slug}: ${msg}`);
+        if (isNotFoundError(err)) {
+          updateCompanyWiki(company.id, {
+            vacancyFetchStatus: "not_found",
+            lastVacancyError: msg,
+            lastScrapedAt: new Date(),
+          });
+        } else {
+          updateCompanyWiki(company.id, {
+            vacancyFetchStatus: "error",
+            lastVacancyError: msg,
+          });
+        }
       }
     }
 
@@ -216,7 +266,7 @@ export async function runRefresh(
     publish({
       runId: run.id,
       status: "done",
-      message: `Done. ${stats.companiesUpserted} companies, ${stats.vacanciesUpserted} vacancies, ${stats.careersDiscovered} careers, ${stats.companiesFailed} failures.`,
+      message: `Done. ${stats.vacanciesUpserted} vacancies, ${stats.careersDiscovered} careers, ${stats.companiesSkipped} skipped, ${stats.companiesFailed} failed.`,
       stats,
       startedAt: startedAt.toISOString(),
       finishedAt: finishedAt.toISOString(),

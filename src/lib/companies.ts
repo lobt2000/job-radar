@@ -55,6 +55,8 @@ export function updateCompanyWiki(
     scrapeNotes: string | null;
     lastScrapedAt: Date;
     douVacancyCount: number;
+    vacancyFetchStatus: string | null;
+    lastVacancyError: string | null;
   }>,
 ): void {
   db.update(companies).set(patch).where(eq(companies.id, id)).run();
