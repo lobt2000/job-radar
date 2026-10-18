@@ -1,6 +1,6 @@
-import { Pagination } from "@/components/Pagination";
-import { VacancyCard } from "@/components/VacancyCard";
+import { VacancyBoard } from "@/components/VacancyBoard";
 import { ensureDb } from "@/db/ensure";
+import { parseBoardFilters } from "@/lib/filters";
 import { paginate, parsePageParams } from "@/lib/pagination";
 import { listAppliedVacancies } from "@/lib/vacancies";
 
@@ -15,32 +15,33 @@ export default async function AppliedPage({
 }) {
   const params = await searchParams;
   const { page, limit } = parsePageParams(params);
-  const all = listAppliedVacancies();
-  const { items, total, totalPages } = paginate(all, page, limit);
+  const filters = parseBoardFilters(params);
+  const { items, total, totalPages } = paginate(
+    listAppliedVacancies(filters),
+    page,
+    limit,
+  );
 
   return (
-    <section className="space-y-4">
-      <p className="text-sm text-[var(--muted)]">
-        {total} tracked applications.
-      </p>
-      {total === 0 ? (
+    <VacancyBoard
+      basePath="/applied"
+      filters={filters}
+      items={items}
+      page={page}
+      totalPages={totalPages}
+      total={total}
+      limit={limit}
+      mode="applied"
+      header={
+        <p className="text-sm text-[var(--muted)]">
+          {total} tracked applications.
+        </p>
+      }
+      empty={
         <div className="rounded-xl border border-dashed border-[var(--line)] bg-[var(--panel)] p-8 text-center text-[var(--muted)]">
           Mark vacancies as applied from the All or New boards.
         </div>
-      ) : (
-        <>
-          {items.map((v) => (
-            <VacancyCard key={v.id} vacancy={v} mode="applied" />
-          ))}
-          <Pagination
-            basePath="/applied"
-            page={page}
-            totalPages={totalPages}
-            total={total}
-            limit={limit}
-          />
-        </>
-      )}
-    </section>
+      }
+    />
   );
 }

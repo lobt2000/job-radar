@@ -3,7 +3,7 @@ import {
   markAppliedAction,
   unmarkAppliedAction,
 } from "@/app/actions";
-import type { BoardVacancy } from "@/lib/vacancies";
+import type { BoardVacancy } from "@/lib/types";
 
 export function VacancyCard({
   vacancy,

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { BoardFilters } from "@/lib/score";
+import { filtersToSearchParams } from "@/lib/filters";
 
 export function Pagination({
   basePath,
@@ -6,19 +8,19 @@ export function Pagination({
   totalPages,
   total,
   limit,
+  filters,
 }: {
   basePath: string;
   page: number;
   totalPages: number;
   total: number;
   limit: number;
+  filters?: BoardFilters;
 }) {
   if (totalPages <= 1) return null;
 
   const href = (p: number) => {
-    const q = new URLSearchParams();
-    q.set("page", String(p));
-    if (limit !== 20) q.set("limit", String(limit));
+    const q = filtersToSearchParams(filters ?? {}, p, limit);
     const qs = q.toString();
     return qs ? `${basePath}?${qs}` : basePath;
   };

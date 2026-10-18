@@ -10,6 +10,10 @@ type Status = {
     companiesUpserted?: number;
     vacanciesUpserted?: number;
     companiesFailed?: number;
+    companiesSkipped?: number;
+    careersDiscovered?: number;
+    progressCurrent?: number;
+    progressTotal?: number;
   } | null;
 };
 
@@ -41,7 +45,7 @@ export function RefreshButton() {
       void poll().then((still) => {
         if (!still) clearInterval(id);
       });
-    }, 2000);
+    }, 1500);
     return () => clearInterval(id);
   }, [busy, poll]);
 
@@ -52,8 +56,16 @@ export function RefreshButton() {
     await poll();
   }
 
+  const progress = status?.stats;
+  const pct =
+    progress?.progressTotal && progress.progressTotal > 0
+      ? Math.round(
+          ((progress.progressCurrent ?? 0) / progress.progressTotal) * 100,
+        )
+      : null;
+
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex min-w-[12rem] flex-col items-end gap-1">
       <button
         type="button"
         onClick={() => void onRefresh()}
@@ -62,12 +74,17 @@ export function RefreshButton() {
       >
         {busy ? "Refreshing…" : "Refresh"}
       </button>
+      {pct != null && busy ? (
+        <div className="h-1.5 w-40 overflow-hidden rounded-full bg-[var(--line)]">
+          <div
+            className="h-full bg-[var(--accent)] transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      ) : null}
       {status?.message ? (
         <p className="max-w-xs text-right text-xs text-[var(--muted)]">
           {status.message}
-          {status.stats?.companiesFailed
-            ? ` · ${status.stats.companiesFailed} failed`
-            : ""}
         </p>
       ) : null}
     </div>
