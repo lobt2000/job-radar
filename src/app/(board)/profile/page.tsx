@@ -26,14 +26,19 @@ export default async function ProfilePage({
   const roles = parseJsonStringArray(row?.roles).join(", ");
   const keywords = parseJsonStringArray(row?.keywords).join(", ");
   const exclude = parseJsonStringArray(row?.excludeKeywords).join(", ");
+  const cities = parseJsonStringArray(row?.cities).join(", ");
 
   return (
     <div className="space-y-10">
       <section className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-5">
         <h2 className="text-lg font-semibold">Matching profile</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Comma-separated tokens. Roles weigh more than keywords. Exclude hides
-          matches from All.
+          Roles weigh most, then keywords, cities, remote, English, and years.
+          Exclude hides matches from All. Upload a CV on the{" "}
+          <a className="underline" href="/cv">
+            CV
+          </a>{" "}
+          tab (v2).
         </p>
         <form action={saveProfileAction} className="mt-4 space-y-4">
           <label className="block text-sm">
@@ -53,6 +58,55 @@ export default async function ProfilePage({
               placeholder="react, typescript, next.js"
               className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2"
             />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium">Cities</span>
+            <input
+              name="cities"
+              defaultValue={cities}
+              placeholder="Київ, Львів, Warsaw"
+              className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2"
+            />
+          </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">English level</span>
+              <select
+                name="englishLevel"
+                defaultValue={row?.englishLevel ?? ""}
+                className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2"
+              >
+                <option value="">Any</option>
+                <option value="B1">B1</option>
+                <option value="B2">B2</option>
+                <option value="C1">C1</option>
+                <option value="C2">C2</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Upper-Intermediate">Upper-Intermediate</option>
+                <option value="Advanced">Advanced</option>
+              </select>
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Years of experience</span>
+              <input
+                name="experienceMin"
+                type="number"
+                min={0}
+                max={40}
+                defaultValue={row?.experienceMin ?? ""}
+                placeholder="3"
+                className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2"
+              />
+            </label>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="preferRemote"
+              defaultChecked={Boolean(row?.preferRemote)}
+              className="size-4"
+            />
+            Prefer remote / hybrid
           </label>
           <label className="block text-sm">
             <span className="mb-1 block font-medium">Exclude</span>

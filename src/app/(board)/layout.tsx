@@ -10,6 +10,7 @@ const tabs = [
   { href: "/new", label: "New" },
   { href: "/applied", label: "Applied" },
   { href: "/profile", label: "Profile" },
+  { href: "/cv", label: "CV" },
 ] as const;
 
 export default function BoardLayout({
